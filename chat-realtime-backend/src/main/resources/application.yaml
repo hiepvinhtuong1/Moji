@@ -1,0 +1,28 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: chat-realtime-backend
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  datasource:
+    url: jdbc:postgresql://localhost:5433/dbmoji
+    username: postgres
+    password: "@Abc123456"
+    driver-class-name: org.postgresql.Driver
+
+open:
+  api:
+    title: API Moji document
+    version: v1.0.0
+    description: Moji API description
+    serverUrl: http://localhost:8080
+    serverName: Server Test
