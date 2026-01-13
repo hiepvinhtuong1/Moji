@@ -10,10 +10,11 @@ public enum ErrorCode {
     TOKEN_EXPIRED_EXCEPTION(410, "Token was expired", HttpStatus.GONE),
     TOKEN_CANNOT_CREATE_EXCEPTION(2001,"Token can not create" ,HttpStatus.UNAUTHORIZED ),
     ACCESS_TOKEN_STILL_VALID(2002,"Access token is still valid" ,HttpStatus.BAD_REQUEST ),
+    REFRESH_TOKEN_EXPIRED(2003, "The refresh token has expired." , HttpStatus.BAD_REQUEST),
     USERNAME_OR_EMAIL_EXISTED(3000,"Username or email was existed" ,HttpStatus.BAD_REQUEST ),
     USERNAME_OR_PASSWORD_NOT_MATCH(3001,"Username or password dit not match" ,HttpStatus.BAD_REQUEST ),
     USER_NOT_FOUND(3002,"User was not founded" ,HttpStatus.NOT_FOUND ),
-    INVALID_KEY(3003,"Invalid key" ,HttpStatus.BAD_REQUEST );
+    INVALID_KEY(3003,"Invalid key" ,HttpStatus.BAD_REQUEST ), ;
     private final int errorCode;
     private final String message;
     private final HttpStatus httpStatusCode;

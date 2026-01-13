@@ -103,10 +103,17 @@ public class AuthServiceImpl implements AuthService {
         String userIdFromRefresh = signedJWTRefresh.getJWTClaimsSet().getSubject();
         Date expirationTimeRefresh = signedJWTRefresh.getJWTClaimsSet().getExpirationTime();
         String refreshTokenId = signedJWTRefresh.getJWTClaimsSet().getJWTID();
+
+        // Kiem tra xem refreshToken con han hay khong
+        if (expirationTimeRefresh.before(new Date())){
+            throw new AppException(ErrorCode.REFRESH_TOKEN_EXPIRED);
+        }
+
         //4 kiem tra cap token thuoc ve cung 1 user
         if (!userIdFromAccess.equals(userIdFromRefresh)){
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
+
        //5 vo hieu hoa refresh token cu
         InvalidatedToken invalidatedToken = InvalidatedToken.builder()
                 .idToken(refreshTokenId)

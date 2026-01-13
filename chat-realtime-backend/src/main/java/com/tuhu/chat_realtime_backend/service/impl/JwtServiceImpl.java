@@ -97,7 +97,7 @@ public class JwtServiceImpl implements JwtService {
         JWSHeader jwsHeader = new JWSHeader(JWSAlgorithm.HS256);
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
                 .subject(user.getUserId().toString())
-                .issuer("quyet.leavemanagement.backend")
+                .issuer("tuanhiepdev")
                 .issueTime(new Date())
                 .expirationTime(new Date(Instant.now().plus(accessTokenDuration, ChronoUnit.SECONDS).toEpochMilli()))
                 .jwtID(UUID.randomUUID().toString())
@@ -118,7 +118,7 @@ public class JwtServiceImpl implements JwtService {
         JWSHeader jwsHeader = new JWSHeader(JWSAlgorithm.HS256);
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
                 .subject(user.getUserId().toString())
-                .issuer("quyet.leavemanagement.backend")
+                .issuer("tuanhiepdev")
                 .issueTime(new Date())
                 .expirationTime(new Date(Instant.now().plus(refreshTokenDuration, ChronoUnit.SECONDS).toEpochMilli()))
                 .jwtID(UUID.randomUUID().toString())
