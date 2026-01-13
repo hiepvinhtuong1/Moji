@@ -7,6 +7,7 @@ export interface AuthState {
     user: User | null,
     loading: boolean;
     setAccessToken: (token: string) => void;
+    setRefreshToken: (token: string) => void;
     signUp: (
         data: SignUpRequest
     ) => Promise<void>

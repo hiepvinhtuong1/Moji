@@ -13,6 +13,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ accessToken: token });
         localStorage.setItem('accessToken', token);
     },
+    setRefreshToken: (token) => {
+        set({ refreshToken: token });
+        localStorage.setItem('refreshToken', token);
+    },
     signUp: async (data: SignUpRequest) => {
         try {
             set({ loading: true })
@@ -48,16 +52,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     refresh: async (data: RefreshTokenRequest) => {
         try {
             set({ loading: true })
-            const res = await authService.refreshTokenAPI(data);
 
+            const res = await authService.refreshTokenAPI(data);
             const { accessToken, refreshToken } = res.data;
             set({ accessToken, refreshToken, loading: false });
             localStorage.setItem('accessToken', accessToken);
             localStorage.setItem('refreshToken', refreshToken);
         } catch (error) {
-            console.log("🚀 ~ error:", error)
+            console.error("Refresh token expired/invalid:", error);
+
+            // Gọi hàm logout đã định nghĩa bên dưới thông qua get()
+            // Bạn cần truyền đúng LogoutRequest nếu API logout yêu cầu
+            const { refreshToken, accessToken } = get();
+            const data: LogoutRequest = {
+                accessToken: accessToken,
+                refreshToken: refreshToken
+            }
+            get().logout(data);
+
+            toast.error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
+        } finally {
             set({ loading: false });
-            toast.error("Bạn đã hết thời gian truy cập. Hãy đăng nhập lại");
         }
     },
     logout: async (data: LogoutRequest) => {
