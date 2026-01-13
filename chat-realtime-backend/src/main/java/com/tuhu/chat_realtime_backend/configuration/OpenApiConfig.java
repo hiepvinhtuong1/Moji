@@ -21,7 +21,7 @@ public class OpenApiConfig {
                            @Value("${open.api.version}") String version,
                            @Value("${open.api.description}") String description,
                            @Value("${open.api.serverName}") String serverName,
-                           @Value("${open.api.serverUrl}") String serverUrl) {
+                           @Value("${open.api.serverUrl}/api") String serverUrl) {
         return new OpenAPI()
                 .info(new Info().title(title)
                         .version(version)

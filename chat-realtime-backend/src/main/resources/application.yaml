@@ -19,6 +19,12 @@ spring:
     password: "@Abc123456"
     driver-class-name: org.postgresql.Driver
 
+jwt:
+  access-token-key: ${ACCESS_TOKEN:dbVkYCHQIBx33giGxnJic7noT0eagNcR}
+  refresh-token-key: ${REFRESH_TOKEN:Wu8w4pkiVmErS9Z9Loel7tMBM7f3VFjD}
+  access-token-duration: ${ACCESS_TOKEN_DURATION:540} # in second
+  refresh-token-duration: ${REFRESH_TOKEN:3600} # in second
+
 open:
   api:
     title: API Moji document
