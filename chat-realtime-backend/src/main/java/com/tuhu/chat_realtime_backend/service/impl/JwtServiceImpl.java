@@ -10,6 +10,9 @@ import com.tuhu.chat_realtime_backend.exception.AppException;
 import com.tuhu.chat_realtime_backend.exception.ErrorCode;
 import com.tuhu.chat_realtime_backend.repository.InvalidatedTokenRepository;
 import com.tuhu.chat_realtime_backend.service.JwtService;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,8 @@ import java.util.Date;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class JwtServiceImpl implements JwtService {
 
     InvalidatedTokenRepository invalidatedTokenRepository;

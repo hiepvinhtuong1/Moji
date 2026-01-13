@@ -1,9 +1,13 @@
 package com.tuhu.chat_realtime_backend.configuration;
 
 import com.nimbusds.jose.JOSEException;
+import com.tuhu.chat_realtime_backend.exception.AppException;
+import com.tuhu.chat_realtime_backend.exception.ErrorCode;
 import com.tuhu.chat_realtime_backend.service.JwtService;
 import com.tuhu.chat_realtime_backend.service.impl.JwtServiceImpl;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -12,9 +16,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.spec.SecretKeySpec;
-import java.text.ParseException;
-import java.time.LocalDateTime;
-import java.util.Objects;
+
 
 @Component
 public class CustomJwtDecoder implements JwtDecoder {
@@ -23,8 +25,7 @@ public class CustomJwtDecoder implements JwtDecoder {
     private String accessTokenSignerKey;
 
     private final JwtService jwtService;
-
-    private NimbusJwtDecoder nimbusJwtDecoder = null;
+    private NimbusJwtDecoder nimbusJwtDecoder;
 
     public CustomJwtDecoder(JwtService jwtService) {
         this.jwtService = jwtService;
@@ -32,34 +33,43 @@ public class CustomJwtDecoder implements JwtDecoder {
 
     @Override
     public Jwt decode(String token) throws JwtException {
-        // BƯỚC 1: Kiểm tra tính hợp lệ về nghiệp vụ (Blacklist, Expired, Signature)
-        // Chúng ta gọi JwtService trước để đảm bảo token chưa bị Logout
-        try {
-            jwtService.verifyToken(token, false);
-        } catch (JOSEException | ParseException e) {
-            // Quan trọng: Phải throw JwtException thì AuthenticationEntryPoint mới bắt được
-            throw new JwtException("Token invalid: " + e.getMessage());
+        if (nimbusJwtDecoder == null) {
+            initializeDecoder();
         }
+        return nimbusJwtDecoder.decode(token);
+    }
 
-        // BƯỚC 2: Khởi tạo NimbusJwtDecoder (chỉ thực hiện 1 lần duy nhất - Thread-safe)
-        if (Objects.isNull(nimbusJwtDecoder)) {
-            synchronized (this) {
-                if (nimbusJwtDecoder == null) {
-                    SecretKeySpec secretKeySpec = new SecretKeySpec(accessTokenSignerKey.getBytes(), "HS256");
-                    nimbusJwtDecoder = NimbusJwtDecoder
-                            .withSecretKey(secretKeySpec)
-                            .macAlgorithm(MacAlgorithm.HS256)
-                            .build();
-                }
+    private synchronized void initializeDecoder() {
+        if (nimbusJwtDecoder != null) return;
+
+        SecretKeySpec key = new SecretKeySpec(accessTokenSignerKey.getBytes(), "HS256");
+
+        NimbusJwtDecoder decoder = NimbusJwtDecoder
+                .withSecretKey(key)
+                .macAlgorithm(MacAlgorithm.HS256)
+                .build();
+
+        // Cài đặt Validator tùy chỉnh
+        decoder.setJwtValidator(jwt -> {
+            try {
+                // Logic kiểm tra nghiệp vụ tập trung ở JwtService
+                jwtService.verifyToken(jwt.getTokenValue(), false);
+                return OAuth2TokenValidatorResult.success();
+            } catch (AppException e) {
+                // Ánh xạ lỗi nghiệp vụ sang mã lỗi OAuth2 chuẩn
+                String errorCode = (e.getErrorCode() == ErrorCode.TOKEN_EXPIRED_EXCEPTION)
+                        ? "token_expired" : "invalid_token";
+
+                return OAuth2TokenValidatorResult.failure(
+                        new OAuth2Error(errorCode, e.getMessage(), null)
+                );
+            } catch (Exception e) {
+                return OAuth2TokenValidatorResult.failure(
+                        new OAuth2Error("invalid_token", "Authentication failed", null)
+                );
             }
-        }
+        });
 
-        // BƯỚC 3: Giải mã token sang đối tượng Jwt của Spring Security
-        // Nimbus sẽ tự động trích xuất các Claims như sub, exp, scope...
-        try {
-            return nimbusJwtDecoder.decode(token);
-        } catch (JwtException e) {
-            throw new JwtException("Decode failed: " + e.getMessage());
-        }
+        this.nimbusJwtDecoder = decoder;
     }
 }

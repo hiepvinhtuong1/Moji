@@ -7,7 +7,7 @@ public enum ErrorCode {
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized Exception error!", HttpStatus.INTERNAL_SERVER_ERROR),
     UNAUTHORIZED(401, "Unauthenticated error!", HttpStatus.UNAUTHORIZED),
     FORBIDDEN(403, "You do not have permission!", HttpStatus.FORBIDDEN),
-    TOKEN_EXPIRED_EXCEPTION(2000,"Token was expired",HttpStatus.UNAUTHORIZED ),
+    TOKEN_EXPIRED_EXCEPTION(410, "Token was expired", HttpStatus.GONE),
     TOKEN_CANNOT_CREATE_EXCEPTION(2001,"Token can not create" ,HttpStatus.UNAUTHORIZED ),
     ACCESS_TOKEN_STILL_VALID(2002,"Access token is still valid" ,HttpStatus.BAD_REQUEST ),
     USERNAME_OR_EMAIL_EXISTED(3000,"Username or email was existed" ,HttpStatus.BAD_REQUEST ),

@@ -17,25 +17,27 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException authException) throws IOException, ServletException {
 
-        // 1. Định nghĩa mã lỗi (Sử dụng ErrorCode đã thống nhất)
+        // 1. Mặc định là UNAUTHORIZED (401)
         ErrorCode errorCode = ErrorCode.UNAUTHORIZED;
 
-        // 2. Thiết lập Header cho Response (JSON UTF-8)
-        response.setStatus(errorCode.getHttpStatusCode().value());
+        // 2. Kiểm tra nếu nguyên nhân lỗi là do Token hết hạn
+        // Message này khớp với "Token invalid: " + e.getMessage() trong CustomJwtDecoder
+        if (authException.getMessage() != null && authException.getMessage().contains("expired")) {
+            errorCode = ErrorCode.TOKEN_EXPIRED_EXCEPTION;
+        }
+
+        // 3. Cấu hình Response
+        response.setStatus(errorCode.getHttpStatusCode().value()); // Sẽ là 410 nếu hết hạn
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
 
-        // 3. Tạo Body trả về theo format ApiResponse chuẩn của dự án
         ApiResponse<?> apiResponse = ApiResponse.builder()
-                .statusCode(errorCode.getErrorCode())
+                .statusCode(errorCode.getErrorCode()) // Mã nội bộ (VD: 2000)
                 .message(errorCode.getMessage())
                 .build();
 
-        // 4. Sử dụng ObjectMapper (Jackson) để ghi JSON vào Response
         ObjectMapper objectMapper = new ObjectMapper();
         response.getWriter().write(objectMapper.writeValueAsString(apiResponse));
-
-        // 5. Kết thúc và gửi response về Client (React)
         response.flushBuffer();
     }
 }

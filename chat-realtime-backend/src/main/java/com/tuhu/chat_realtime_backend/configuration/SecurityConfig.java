@@ -7,12 +7,12 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -20,26 +20,15 @@ import org.springframework.web.cors.CorsConfiguration;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final String[] publicEndpoints = {
-            "/test",
-            "/v3/api-docs/**",
-            "/swagger-ui/**",
-            "/swagger-ui.html",
-            "/auth/**"
-    };
+    private final String[] publicEndpoints = { "/auth/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html" };
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity, CustomJwtDecoder customJwtDecoder) throws Exception {
         httpSecurity
-                .cors(cors -> cors.configurationSource(request -> {
-                    CorsConfiguration config = new CorsConfiguration();
-                    config.addAllowedOriginPattern("*");
-                    config.addAllowedMethod("*");
-                    config.addAllowedHeader("*");
-                    config.setAllowCredentials(true);
-                    return config;
-                }))
-                .authorizeHttpRequests((request) -> request
+                // 1. Kích hoạt cấu hình CORS mặc định của Spring
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(request -> request
                         .requestMatchers(publicEndpoints).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -50,10 +39,32 @@ public class SecurityConfig {
                         )
                         .authenticationEntryPoint(new CustomAuthenticationEntryPoint())
                         .accessDeniedHandler(new CustomAccessDeniedHandler())
-                )
-                .csrf(AbstractHttpConfigurer::disable);;
+                );
 
         return httpSecurity.build();
+    }
+
+    // 2. Tạo Bean cấu hình CORS riêng biệt
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+
+        // Cho phép origin của React
+        config.addAllowedOrigin("http://localhost:5173");
+
+        // Cho phép tất cả các Header (Authorization, Content-Type, v.v.)
+        config.addAllowedHeader("*");
+
+        // Cho phép các Method cần thiết
+        config.addAllowedMethod("*");
+
+        // Quan trọng: Cho phép gửi kèm Credentials (Token, Cookies)
+        config.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // Áp dụng cho toàn bộ các API trong project
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 
     @Bean
