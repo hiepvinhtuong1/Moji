@@ -4,8 +4,7 @@ import com.tuhu.chat_realtime_backend.constant.enums.MessageType;
 import jakarta.persistence.Entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.UUID;
 
@@ -13,6 +12,9 @@ import java.util.UUID;
 @Table(name = "messages")
 @Getter
 @Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Message extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

@@ -15,7 +15,7 @@ import java.util.Date;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class InvalidatedToken {
+public class InvalidatedToken extends BaseEntity {
 
     @Id
     @Column(name = "id_token")

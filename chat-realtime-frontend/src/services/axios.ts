@@ -3,6 +3,7 @@ import type { RefreshTokenResponse } from '@/types/auth';
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'sonner';
 
+// Mở rộng interface của Axios để tránh lặp lại request refresh vô hạn
 declare module 'axios' {
     interface InternalAxiosRequestConfig {
         _retry?: boolean;
@@ -11,28 +12,27 @@ declare module 'axios' {
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
-// 1. Instance dành cho các API cần Token (Private)
-const authorizedAxiosInstance = axios.create({
+// Cấu hình dùng chung
+const commonConfig = {
     baseURL: BASE_URL,
-    timeout: 1000 * 60 * 10, // 10 phút
-});
+    timeout: 1000 * 60 * 5, // 5 phút
+    withCredentials: true, // QUAN TRỌNG: Để trình duyệt gửi/nhận Cookie HttpOnly
+};
 
-// 2. Instance dành cho các API KHÔNG cần Token (Public: Login, Register, Refresh)
-// Việc tách riêng giúp tránh gửi nhầm Access Token hết hạn lên API Refresh
-export const publicAxiosInstance = axios.create({
-    baseURL: BASE_URL,
-    timeout: 1000 * 60,
-});
+// 1. Instance cho các API cần Token (Private)
+const authorizedAxiosInstance = axios.create(commonConfig);
 
-// Biến quản lý việc gọi Refresh Token duy nhất một lần (Tránh race condition)
+// 2. Instance cho các API công khai (Public: Login, Register, Refresh)
+export const publicAxiosInstance = axios.create(commonConfig);
+
+// Biến quản lý việc gọi Refresh Token duy nhất một lần (Tránh race condition khi nhiều API lỗi 410 cùng lúc)
 let refreshTokenPromise: Promise<RefreshTokenResponse> | null = null;
 
-// --- REQUEST INTERCEPTOR (Chỉ cho Private Instance) ---
+// --- REQUEST INTERCEPTOR (Gắn Access Token vào Header) ---
 authorizedAxiosInstance.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
         const accessToken = useAuthStore.getState().accessToken;
 
-        // Chỉ đính kèm Token nếu có trong store
         if (accessToken && config.headers) {
             config.headers.Authorization = `Bearer ${accessToken}`;
         }
@@ -41,7 +41,7 @@ authorizedAxiosInstance.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// --- RESPONSE INTERCEPTOR (Chỉ cho Private Instance) ---
+// --- RESPONSE INTERCEPTOR (Xử lý lỗi Token hết hạn) ---
 authorizedAxiosInstance.interceptors.response.use(
     (response) => response,
     async (error: AxiosError<{ message: string }>) => {
@@ -50,50 +50,55 @@ authorizedAxiosInstance.interceptors.response.use(
 
         const status = error.response?.status;
 
-        // Trường hợp 401: Token không hợp lệ hoặc bị từ chối thẳng
+        // Trường hợp 401: Token không hợp lệ hoặc bị cấm (Unauthorized)
         if (status === 401) {
-            const { refreshToken, accessToken } = useAuthStore.getState();
-            useAuthStore.getState().logout({ accessToken, refreshToken });
-            toast.error("Yêu cầu xác thực không hợp lệ. Vui lòng đăng nhập lại.");
+            useAuthStore.getState().logout({
+                accessToken: useAuthStore.getState().accessToken,
+                refreshToken: "" // Backend sẽ tự lấy từ Cookie nên để rỗng
+            });
+            toast.error("Phiên làm việc không hợp lệ. Vui lòng đăng nhập lại.");
             return Promise.reject(error);
         }
 
-        // Trường hợp 410: Access Token hết hạn, cần Refresh
+        // Trường hợp 410: Access Token hết hạn, cần gọi Refresh Token
+        // Lưu ý: Backend của bạn cần trả về đúng mã 410 khi Access Token hết hạn
         if (status === 410 && !originalRequest._retry) {
             originalRequest._retry = true;
 
             try {
                 if (!refreshTokenPromise) {
-                    const { refreshToken, accessToken: oldAccessToken } = useAuthStore.getState();
+                    const oldAccessToken = useAuthStore.getState().accessToken;
 
-                    if (!refreshToken) throw new Error("No refresh token available");
-
-                    // Gọi API refresh thông qua publicAxiosInstance để KHÔNG gửi kèm Access Token cũ
+                    // Gọi API refresh: TRÌNH DUYỆT TỰ GỬI REFRESH TOKEN TRONG COOKIE
+                    // Ta chỉ cần gửi accessToken cũ trong body như logic Backend yêu cầu
                     refreshTokenPromise = publicAxiosInstance.post("/auth/refresh", {
-                        accessToken: oldAccessToken,
-                        refreshToken: refreshToken
-                    }).then(res => res.data); // .data.data tùy theo cấu trúc ApiResponse của bạn
+                        accessToken: oldAccessToken
+                    }).then(res => res.data);
                 }
 
-                const tokens = await refreshTokenPromise
-                refreshTokenPromise = null;
+                const response = await refreshTokenPromise;
+                refreshTokenPromise = null; // Reset sau khi thành công
 
-                if (tokens && tokens.data.accessToken && tokens.data.refreshToken) {
-                    // Cập nhật token mới vào Zustand Store
-                    useAuthStore.getState().setAccessToken(tokens.data.accessToken);
-                    useAuthStore.getState().setRefreshToken(tokens.data.refreshToken)
-                    // Gắn token mới vào request bị lỗi ban đầu và thực hiện lại
-                    originalRequest.headers.Authorization = `Bearer ${tokens.data.accessToken}`;
+                const newAccessToken = response.data.accessToken;
+
+                if (newAccessToken) {
+                    // 1. Cập nhật Token mới vào Zustand (RAM)
+                    useAuthStore.getState().setAccessToken(newAccessToken);
+
+                    // 2. Gắn token mới vào request bị lỗi ban đầu và thực hiện lại (Retry)
+                    originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
                     return authorizedAxiosInstance(originalRequest);
                 }
             } catch (refreshError) {
                 refreshTokenPromise = null;
 
-                // Nếu refresh thất bại, xóa sạch store và đẩy ra trang login
-                const { refreshToken, accessToken } = useAuthStore.getState();
-                useAuthStore.getState().logout({ accessToken, refreshToken });
+                // Nếu refresh thất bại (Refresh Token cũng hết hạn) -> Logout sạch sẽ
+                useAuthStore.getState().logout({
+                    accessToken: useAuthStore.getState().accessToken,
+                    refreshToken: ""
+                });
 
-                toast.error("Phiên đăng nhập đã hết hạn hoàn toàn.");
+                toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
                 return Promise.reject(refreshError);
             }
         }

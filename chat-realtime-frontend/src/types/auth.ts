@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { User } from "./user";
-import type { ApiResponse } from "./ApiResponse";
+import type { ApiResponse } from "./api";
 
 export const signUpSchema = z.object({
     displayName: z.string().min(1, "Họ và tên bắt buộc phải có"),

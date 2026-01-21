@@ -2,8 +2,7 @@ package com.tuhu.chat_realtime_backend.entity;
 import com.tuhu.chat_realtime_backend.constant.enums.UserConversationRole;
 import com.tuhu.chat_realtime_backend.entity.id.ConversationMemberId;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -12,6 +11,9 @@ import java.util.UUID;
 @Table(name = "conversation_members")
 @Getter
 @Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @IdClass(ConversationMemberId.class) // Composite Key
 public class ConversationMember {
     @Id
@@ -29,5 +31,7 @@ public class ConversationMember {
     private UserConversationRole role;
     private LocalDateTime joinedAt = LocalDateTime.now();
     private LocalDateTime leftAt;
-    private UUID lastReadMessageId;
+    private UUID lastReadMessageId; // Pointer để biết đã đọc đến đâu
+
+    private int unreadCount = 0; // Tăng lên khi có tin nhắn mới, reset về 0 khi đọc
 }

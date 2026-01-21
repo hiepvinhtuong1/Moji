@@ -1,96 +1,72 @@
 import { create } from 'zustand'
 import { toast } from 'sonner'
 import type { AuthState } from '@/types/store'
-import type { LogoutRequest, RefreshTokenRequest, SignInRequest, SignUpRequest } from '@/types/auth';
+import type { LogoutRequest, SignInRequest } from '@/types/auth';
 import { authService } from '@/services/authServices';
+import { persist } from 'zustand/middleware';
+import { useChatStore } from './useChatStores';
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-    accessToken: localStorage.getItem('accessToken'),
-    refreshToken: localStorage.getItem('refreshToken'),
-    user: JSON.parse(localStorage.getItem('user') || 'null'),
-    loading: false,
-    setAccessToken: (token) => {
-        set({ accessToken: token });
-        localStorage.setItem('accessToken', token);
-    },
-    setRefreshToken: (token) => {
-        set({ refreshToken: token });
-        localStorage.setItem('refreshToken', token);
-    },
-    signUp: async (data: SignUpRequest) => {
-        try {
-            set({ loading: true })
-            await authService.signUpAPI(data);
-            toast("Đăng ký thành công")
-        } catch (error) {
-            console.error(error);
-            toast.error("Đăng ký không thành công");
-        } finally {
-            set({ loading: false })
-        }
-    },
+export const useAuthStore = create<AuthState>()(
+    persist((set, get) => ({
+        accessToken: null, // Chỉ lưu trong RAM (biến mất khi F5)
+        user: JSON.parse(localStorage.getItem('user') || 'null'),
+        loading: false,
+        isRefreshing: false,
 
-    signIn: async (data: SignInRequest) => {
-        try {
-            set({ loading: true });
-            const res = await authService.signInAPI(data);
-            const { accessToken, refreshToken, user } = res.data;
+        setAccessToken: (token) => set({ accessToken: token }),
 
-            set({ accessToken, refreshToken, user, loading: false });
+        signIn: async (data: SignInRequest) => {
+            try {
+                set({ loading: true });
+                const res = await authService.signInAPI(data);
+                // Backend chỉ trả về accessToken và user (refreshToken nằm trong Cookie)
+                const { accessToken, user } = res.data;
 
-            localStorage.setItem('accessToken', accessToken);
-            localStorage.setItem('refreshToken', refreshToken);
-            localStorage.setItem('user', JSON.stringify(user));
-            toast.success("Đăng nhập thành công!");
-        } catch (error) {
-            console.log("🚀 ~ error:", error)
-            set({ loading: false });
-            toast.error("Đăng nhập không thành công");
-        }
-    },
-
-    refresh: async (data: RefreshTokenRequest) => {
-        try {
-            set({ loading: true })
-
-            const res = await authService.refreshTokenAPI(data);
-            const { accessToken, refreshToken } = res.data;
-            set({ accessToken, refreshToken, loading: false });
-            localStorage.setItem('accessToken', accessToken);
-            localStorage.setItem('refreshToken', refreshToken);
-        } catch (error) {
-            console.error("Refresh token expired/invalid:", error);
-
-            // Gọi hàm logout đã định nghĩa bên dưới thông qua get()
-            // Bạn cần truyền đúng LogoutRequest nếu API logout yêu cầu
-            const { refreshToken, accessToken } = get();
-            const data: LogoutRequest = {
-                accessToken: accessToken,
-                refreshToken: refreshToken
+                set({ accessToken, user, loading: false });
+                localStorage.setItem('user', JSON.stringify(user));
+                useChatStore.getState().reset();
+                toast.success("Đăng nhập thành công!");
+            } catch (error) {
+                console.log("🚀 ~ error:", error)
+                set({ loading: false });
+                toast.error("Đăng nhập thất bại");
             }
-            get().logout(data);
+        },
 
-            toast.error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
-        } finally {
-            set({ loading: false });
+        logout: async (data: LogoutRequest) => {
+            try {
+                set({ loading: true });
+                await authService.logoutAPI(data);
+            } finally {
+                set({ accessToken: null, user: null, loading: false });
+                localStorage.removeItem('user');
+            }
+        },
+
+        checkAuth: async () => {
+            if (get().isRefreshing) return; // Nếu đang refresh thì thoát
+            try {
+                set({ isRefreshing: true });
+                set({ loading: true });
+                // Không gửi chuỗi rỗng nếu accessToken là null
+                const token = get().accessToken;
+                const res = await authService.refreshTokenAPI(token ? { accessToken: token } : {} as any);
+                set({ accessToken: res.data.accessToken, isRefreshing: false });
+            } catch (error) {
+                console.log("🚀 ~ error:", error)
+                set({ accessToken: null, user: null, isRefreshing: false });
+                localStorage.removeItem('user');
+            } finally {
+                set({ loading: false })
+            }
         }
-    },
-    logout: async (data: LogoutRequest) => {
-        try {
-            set({ loading: true })
-            await authService.logoutAPI(data);
-            set({ accessToken: null, refreshToken: null, user: null });
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('user');
-        } catch (error) {
-            console.log("🚀 ~ error:", error)
-            set({ accessToken: null, refreshToken: null, user: null });
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('user');
-            set({ loading: false });
-            toast.error("Bạn đã hết thời gian truy cập. Hãy đăng nhập lại");
-        }
-    }
-}))
+    }),
+        {
+            name: "auth-storage",
+            // QUAN TRỌNG: Chỉ chọn lưu 'user', bỏ qua 'accessToken' để bảo mật
+            partialize: (state) => ({
+                user: state.user
+            }),
+
+        })
+);

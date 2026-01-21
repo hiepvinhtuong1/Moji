@@ -6,21 +6,27 @@ import { Button } from "../ui/button"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { signUpSchema, type SignUpRequest } from "@/types/auth"
-import { useAuthStore } from "@/stores/useAuthStores"
 import { useNavigate } from "react-router"
+import { authService } from "@/services/authServices"
+import { toast } from "sonner"
 export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const { signUp } = useAuthStore();
   const navigate = useNavigate();
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SignUpFormValues>({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SignUpRequest>({
     resolver: zodResolver(signUpSchema),
   })
 
   const onSubmit = async (data: SignUpRequest) => {
-    await signUp(data);
-    navigate("/signin")
+    try {
+      await authService.signUpAPI(data);
+      navigate("/signin")
+
+    } catch (error: any) {
+      console.log("🚀 ~ onSubmit ~ error:", error)
+      toast.error(error?.response?.data?.message || "Đăng nhập thất bại");
+    }
   }
 
   return (

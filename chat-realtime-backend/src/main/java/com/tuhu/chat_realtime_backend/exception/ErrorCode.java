@@ -14,7 +14,13 @@ public enum ErrorCode {
     USERNAME_OR_EMAIL_EXISTED(3000,"Username or email was existed" ,HttpStatus.BAD_REQUEST ),
     USERNAME_OR_PASSWORD_NOT_MATCH(3001,"Username or password dit not match" ,HttpStatus.BAD_REQUEST ),
     USER_NOT_FOUND(3002,"User was not founded" ,HttpStatus.NOT_FOUND ),
-    INVALID_KEY(3003,"Invalid key" ,HttpStatus.BAD_REQUEST ), ;
+    INVALID_KEY(3003,"Invalid key" ,HttpStatus.BAD_REQUEST ),
+    CANNOT_ADD_YOURSELF_AS_FRIEND(4000, "You cannot add yourself as a friend", HttpStatus.BAD_REQUEST),
+    FRIEND_REQUEST_ALREADY_SENT(4001,"FRIEND_REQUEST_ALREADY_SENT" ,HttpStatus.BAD_REQUEST ),
+    USERS_ARE_ALREADY_FRIENDS(4002,"USERS_ARE_ALREADY_FRIENDS" ,HttpStatus.BAD_REQUEST ),
+    FAILED_TO_SEND_FRIEND_REQUEST(4003,"FAILED_TO_SEND_FRIEND_REQUEST" ,HttpStatus.BAD_REQUEST ),
+    FRIEND_REQUEST_NOT_FOUND(4004,"FRIEND_REQUEST_NOT_FOUND",HttpStatus.NOT_FOUND),
+    CANNOT_ACCEPT_FRIEND_REQUEST_NOT_YOURS(4005,"CANNOT_ACCEPT_FRIEND_REQUEST_NOT_YOURS",HttpStatus.BAD_REQUEST );
     private final int errorCode;
     private final String message;
     private final HttpStatus httpStatusCode;

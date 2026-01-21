@@ -1,6 +1,6 @@
 import type { LogoutRequest, RefreshTokenRequest, RefreshTokenResponse, SignInRequest, SigninResponse, SignUpRequest } from '@/types/auth';
 import { publicAxiosInstance } from './axios'
-import type { BaseResponse } from '@/types/ApiResponse';
+import type { BaseResponse } from '@/types/api';
 
 export const authService = {
     signUpAPI: async (data: SignUpRequest): Promise<BaseResponse> => {

@@ -90,33 +90,29 @@ public class AuthServiceImpl implements AuthService {
     public RefreshTokenResponse refreshToken(RefreshTokenRequest request) throws ParseException, JOSEException {
         log.info("refreshToken service called");
         //check access token is expired
-        SignedJWT signedJWTAccess = jwtService.getSignedJWT(request.getAccessToken(), false);
-        String userIdFromAccess = signedJWTAccess.getJWTClaimsSet().getSubject();
-
-        //2 Check xem access token thuc su da het han chua
-        if (signedJWTAccess.getJWTClaimsSet().getExpirationTime().after(new Date())){
-            throw new AppException(ErrorCode.ACCESS_TOKEN_STILL_VALID);
-        }
-
-        //3 verify refresh token
-        SignedJWT signedJWTRefresh = jwtService.getSignedJWT(request.getRefreshToken(),true);
+        // 1. Kiểm tra Refresh Token trước (vì nó quan trọng nhất lúc này)
+        SignedJWT signedJWTRefresh = jwtService.getSignedJWT(request.getRefreshToken(), true);
         String userIdFromRefresh = signedJWTRefresh.getJWTClaimsSet().getSubject();
         Date expirationTimeRefresh = signedJWTRefresh.getJWTClaimsSet().getExpirationTime();
-        String refreshTokenId = signedJWTRefresh.getJWTClaimsSet().getJWTID();
 
-        // Kiem tra xem refreshToken con han hay khong
-        if (expirationTimeRefresh.before(new Date())){
+        if (expirationTimeRefresh.before(new Date())) {
             throw new AppException(ErrorCode.REFRESH_TOKEN_EXPIRED);
         }
 
-        //4 kiem tra cap token thuoc ve cung 1 user
-        if (!userIdFromAccess.equals(userIdFromRefresh)){
-            throw new AppException(ErrorCode.UNAUTHORIZED);
+        // 2. Kiểm tra Access Token (Chỉ check nếu request có gửi kèm)
+        if (request.getAccessToken() != null && !request.getAccessToken().isEmpty()) {
+            SignedJWT signedJWTAccess = jwtService.getSignedJWT(request.getAccessToken(), false);
+            String userIdFromAccess = signedJWTAccess.getJWTClaimsSet().getSubject();
+
+            // Check trùng khớp user
+            if (!userIdFromAccess.equals(userIdFromRefresh)) {
+                throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
         }
 
        //5 vo hieu hoa refresh token cu
         InvalidatedToken invalidatedToken = InvalidatedToken.builder()
-                .idToken(refreshTokenId)
+                .idToken(signedJWTRefresh.getJWTClaimsSet().getJWTID())
                 .expiryTime(expirationTimeRefresh)
                 .build();
 

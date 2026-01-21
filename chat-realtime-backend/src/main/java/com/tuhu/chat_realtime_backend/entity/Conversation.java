@@ -1,10 +1,10 @@
 package com.tuhu.chat_realtime_backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,6 +12,9 @@ import java.util.UUID;
 @Table(name = "conversations")
 @Getter
 @Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class Conversation extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -26,4 +29,13 @@ public class Conversation extends BaseEntity {
 
     @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL)
     private List<ConversationMember> members;
+
+    @Column(name = "last_message_at")
+    private LocalDateTime lastMessageAt; // Cực kỳ quan trọng để Sort
+
+    @Column(name = "last_message_content", columnDefinition = "TEXT")
+    private String lastMessageContent; // Preview tin nhắn
+
+    @Column(name = "last_message_sender_id")
+    private UUID lastMessageSenderId; // Để hiển thị "Bạn: ..."
 }
